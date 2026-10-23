@@ -90,7 +90,8 @@ int main(int argc, char **argv) {
     for (int i = 0; i < nentries; i++)
         fprintf(s, ".global np_asset_%s\nnp_asset_%s:\n.incbin \"%s/%s\"\n",
                 entries[i].sym, entries[i].sym, webdir, entries[i].web);
-    fprintf(s, ".section .note.GNU-stack,\"\",@progbits\n");
+    /* 仅 ELF 目标（Linux）需要可执行栈标记；Windows/COFF 汇编器不认识该指令 */
+    fprintf(s, "#ifdef __ELF__\n.section .note.GNU-stack,\"\",@progbits\n#endif\n");
     fclose(s);
 
     FILE *c = fopen(cpath, "w");

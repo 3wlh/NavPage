@@ -27,4 +27,6 @@ np_asset_style_css:
 .global np_asset_vendor_sortable_min_js
 np_asset_vendor_sortable_min_js:
 .incbin "web/vendor/sortable.min.js"
+#ifdef __ELF__
 .section .note.GNU-stack,"",@progbits
+#endif

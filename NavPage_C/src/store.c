@@ -265,7 +265,7 @@ static jval *default_config(void) {
 
     jval *wp = jnew_obj();
     jobj_set(wp, "type", jnew_str("image"));
-    jobj_set(wp, "value", jnew_str("/assets/default-bg.png"));
+    jobj_set(wp, "value", jnew_str("/assets/default-bg"));
     jobj_set(st, "wallpaper", wp);
     jobj_set(st, "wallpaper_grad", jnew_str(""));
     jobj_set(st, "accent", jnew_str("#667eea"));
@@ -278,6 +278,9 @@ static jval *default_config(void) {
     jobj_set(st, "wallpaper_blur", jnew_num(0));
     jobj_set(st, "wallpaper_mask", jnew_num(0));
     jobj_set(st, "card_blur", jnew_num(0));
+    jobj_set(st, "search_opacity", jnew_num(50)); /* 搜索框背景透明度（%，背景固定黑色由 style.css 控制） */
+    jobj_set(st, "search_blur", jnew_num(0));     /* 搜索框毛玻璃（px） */
+    jobj_set(st, "search_font", jnew_num(16));    /* 搜索框字体大小（px） */
     jobj_set(st, "content_max_width", jnew_num(0));
     jobj_set(st, "content_max_unit", jnew_str(""));
     jobj_set(st, "content_pad_x", jnew_num(0));
@@ -330,6 +333,26 @@ static jval *default_config(void) {
 
 /* ---------- 加载 ---------- */
 
+/* 默认壁纸统一用无后缀路径 /assets/default-bg，服务端按文件名主干解析实际文件（兼容任意图片后缀） */
+static int is_default_wallpaper_path(const char *p) {
+    static const char *pre = "/assets/default-bg";
+    size_t n = strlen(pre);
+    if (!p || strncmp(p, pre, n)) return 0;
+    const char *rest = p + n;
+    return !*rest || (rest[0] == '.' && !strchr(rest, '/'));
+}
+
+static void migrate_legacy_wallpaper(store *s) {
+    jval *st = jobj_get(s->cfg, "settings");
+    jval *wp = st ? jobj_get(st, "wallpaper") : NULL;
+    jval *v = wp ? jobj_get(wp, "value") : NULL;
+    const char *str = jstr(v);
+    if (str && is_default_wallpaper_path(str) && strcmp(str, "/assets/default-bg") != 0) {
+        jobj_set(wp, "value", jnew_str("/assets/default-bg"));
+        store_save(s);
+    }
+}
+
 store *store_open(const char *dir) {
     store *s = calloc(1, sizeof *s);
     if (!s) return NULL;
@@ -367,5 +390,6 @@ store *store_open(const char *dir) {
         }
     }
     free(data);
+    migrate_legacy_wallpaper(s);
     return s;
 }

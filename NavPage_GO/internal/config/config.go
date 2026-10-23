@@ -51,6 +51,9 @@ type Settings struct {
 	WallpaperBlur int       `json:"wallpaper_blur"` // 壁纸模糊（px，0=不模糊）
 	WallpaperMask int       `json:"wallpaper_mask"` // 壁纸遮罩暗度（%，0=无遮罩）
 	CardBlur      int       `json:"card_blur"`      // 卡片毛玻璃（px，0=关闭）
+	SearchOpacity int       `json:"search_opacity"` // 搜索框背景透明度（%，背景固定黑色，0=默认 55）
+	SearchBlur    int       `json:"search_blur"`    // 搜索框毛玻璃（px，0=关闭）
+	SearchFont    int       `json:"search_font"`    // 搜索框字体大小（px，0=默认 16）
 
 	ContentMaxWidth     int    `json:"content_max_width"`      // 内容区最大宽度（配合 content_max_unit，0=默认值）
 	ContentMaxUnit      string `json:"content_max_unit"`       // 最大宽度单位：px 或 %（空=px）
@@ -149,7 +152,24 @@ func LoadStore(dir string) (*Store, error) {
 		}
 		return s, nil
 	}
+	// 默认壁纸统一用无后缀路径，服务端按文件名主干 default-bg 解析实际文件（兼容任意图片后缀）
+	if v := s.cfg.Settings.Wallpaper.Value; isDefaultWallpaperPath(v) && v != "/assets/default-bg" {
+		s.cfg.Settings.Wallpaper.Value = "/assets/default-bg"
+		if err := s.saveLocked(); err != nil {
+			return nil, err
+		}
+	}
 	return s, nil
+}
+
+// isDefaultWallpaperPath 判断路径是否指向默认壁纸：/assets/default-bg 或带任意后缀的同一文件。
+func isDefaultWallpaperPath(p string) bool {
+	const pre = "/assets/default-bg"
+	if !strings.HasPrefix(p, pre) {
+		return false
+	}
+	rest := p[len(pre):]
+	return rest == "" || (rest[0] == '.' && !strings.Contains(rest, "/"))
 }
 
 func (s *Store) filePath() string { return filepath.Join(s.dir, "config.json") }
@@ -322,8 +342,10 @@ func defaultConfig() Config {
 				{ID: "google", Name: "谷歌", URL: "https://www.google.com/search?q=%s"},
 			},
 			DefaultEngine: "baidu",
-			Wallpaper:     Wallpaper{Type: "image", Value: "/assets/default-bg.png"},
+			Wallpaper:     Wallpaper{Type: "image", Value: "/assets/default-bg"},
 			Accent:        "#667eea",
+			SearchOpacity: 50,
+			SearchFont:    16,
 			VisitorMode:   false,
 			ContentMarginTop: 8,
 			NetModeSwitch:      "manual",

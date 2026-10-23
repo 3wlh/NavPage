@@ -212,8 +212,32 @@ static const char *mime_of(const char *path) {
     return "application/octet-stream";
 }
 
+/* 默认壁纸：按文件名主干 default-bg 查找（不限定图片后缀），返回实际资源路径；无匹配返回 NULL */
+static const char *default_wallpaper(void) {
+    static const char *pre = "/assets/default-bg";
+    const char *best = NULL;
+    for (int i = 0; i < np_asset_count; i++) {
+        const char *p = np_assets[i].path;
+        if (strncmp(p, pre, strlen(pre))) continue;
+        const char *rest = p + strlen(pre);
+        if (*rest != '.') continue; /* default-bg1 等衍生图不算默认壁纸 */
+        if (!(np_has_suffix_ci(p, ".png") || np_has_suffix_ci(p, ".jpg") ||
+              np_has_suffix_ci(p, ".jpeg") || np_has_suffix_ci(p, ".webp"))) continue;
+        if (!best || strcmp(p, best) < 0) best = p;
+    }
+    return best;
+}
+
 static void serve_embedded(np_sock fd, http_req *r, const char *path) {
     const char *lookup = !strcmp(path, "/") ? "/index.html" : path;
+    /* 默认壁纸别名：/assets/default-bg 不限定后缀，解析到实际文件后按真实路径输出 */
+    if (!strcmp(lookup, "/assets/default-bg")) {
+        lookup = default_wallpaper();
+        if (!lookup) {
+            send_err(fd, r, 404, "未找到资源");
+            return;
+        }
+    }
     for (int i = 0; i < np_asset_count; i++) {
         if (!strcmp(np_assets[i].path, lookup)) {
             const char *cache = np_has_prefix(lookup, "/assets/")
@@ -345,19 +369,21 @@ static void handle_wallpapers(np_sock fd, http_req *r) {
             items[n++] = p;
         }
     }
-    /* 排序，默认壁纸固定第一 */
+    /* 排序，默认壁纸（主干 default-bg，不限后缀）固定第一 */
     for (int i = 1; i < n; i++)
         for (int j = i + 1; j < n; j++)
             if (strcmp(items[j], items[i]) < 0) {
                 const char *t = items[i]; items[i] = items[j]; items[j] = t;
             }
-    for (int i = 0; i < n; i++)
-        if (!strcmp(items[i], "/assets/default-bg.png")) {
-            for (int j = i; j > 0; j--) items[j] = items[j - 1];
-            items[0] = "/assets/default-bg.png";
-            break;
-        }
-    if (!n) items[n++] = "/assets/default-bg.png";
+    const char *def = default_wallpaper();
+    if (def) {
+        for (int i = 0; i < n; i++)
+            if (!strcmp(items[i], def)) {
+                for (int j = i; j > 0; j--) items[j] = items[j - 1];
+                items[0] = def;
+                break;
+            }
+    }
 
     sb b;
     sb_init(&b);

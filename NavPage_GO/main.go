@@ -105,6 +105,9 @@ func main() {
 	_ = os.MkdirAll(uploadsDir, 0o755)
 	mux.Handle("GET /uploads/", cacheStatic(http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadsDir)))))
 
+	// 默认壁纸别名：/assets/default-bg 不限定后缀，按文件名主干解析到实际内嵌文件
+	mux.HandleFunc("GET /assets/default-bg", handleDefaultWallpaper())
+
 	// 前端静态资源（内嵌，禁用缓存以便升级后立即生效）
 	sub, err := fs.Sub(webFS, "web")
 	if err != nil {
@@ -297,13 +300,67 @@ func handleAppearance(s *config.Store) http.HandlerFunc {
 	}
 }
 
+// defaultWallpaper 按文件名主干 default-bg 查找内嵌的默认壁纸（不限定图片后缀），未找到返回空串。
+func defaultWallpaper() string {
+	entries, err := fs.ReadDir(webFS, "web/assets")
+	if err != nil {
+		return ""
+	}
+	best := ""
+	for _, e := range entries {
+		n := e.Name()
+		if e.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(n)
+		if strings.TrimSuffix(n, ext) != "default-bg" {
+			continue
+		}
+		switch strings.ToLower(ext) {
+		case ".png", ".jpg", ".jpeg", ".webp":
+			if best == "" || n < best {
+				best = n
+			}
+		}
+	}
+	if best == "" {
+		return ""
+	}
+	return "/assets/" + best
+}
+
+// handleDefaultWallpaper 以无后缀路径提供默认壁纸，前端固定写 /assets/default-bg 即可适配任意图片后缀。
+func handleDefaultWallpaper() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		def := defaultWallpaper()
+		if def == "" {
+			http.NotFound(w, r)
+			return
+		}
+		data, err := fs.ReadFile(webFS, "web"+def)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		ct := "image/webp"
+		switch strings.ToLower(filepath.Ext(def)) {
+		case ".png":
+			ct = "image/png"
+		case ".jpg", ".jpeg":
+			ct = "image/jpeg"
+		}
+		w.Header().Set("Content-Type", ct)
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeContent(w, r, filepath.Base(def), time.Time{}, bytes.NewReader(data))
+	}
+}
+
 // listWallpapers 列出内嵌 assets 下按 default-bg* 命名、图片扩展名的预设壁纸。
 // 往 web/assets 放新图后重新编译，前端「预设」会自动多出一个圆点，无需改代码。
 func listWallpapers() []string {
-	def := "/assets/default-bg.png"
 	entries, err := fs.ReadDir(webFS, "web/assets")
 	if err != nil {
-		return []string{def}
+		return []string{}
 	}
 	var out []string
 	for _, e := range entries {
@@ -317,16 +374,18 @@ func listWallpapers() []string {
 		}
 	}
 	sort.Strings(out)
-	// 默认壁纸固定排第一位
-	for i, u := range out {
-		if u == def {
-			out = append(out[:i], out[i+1:]...)
-			out = append([]string{def}, out...)
-			break
+	// 默认壁纸（主干 default-bg，不限后缀）固定排第一位
+	if def := defaultWallpaper(); def != "" {
+		for i, u := range out {
+			if u == def {
+				out = append(out[:i], out[i+1:]...)
+				break
+			}
 		}
+		out = append([]string{def}, out...)
 	}
-	if len(out) == 0 {
-		return []string{def}
+	if out == nil {
+		out = []string{}
 	}
 	return out
 }

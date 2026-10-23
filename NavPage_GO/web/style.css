@@ -25,9 +25,10 @@ body {
   overflow-x: hidden;
   background: #12121a; /* 壁纸图片就绪前的兜底底色，避免白屏闪烁 */
 }
+/* 默认壁纸：服务端按文件名主干 default-bg 匹配实际文件（png/jpg/webp 均可），这里不用写后缀 */
 #bg {
   position: fixed; inset: 0; z-index: -1;
-  background: url("/assets/default-bg.png") center/cover no-repeat;
+  background: url("/assets/default-bg") center/cover no-repeat;
   background-attachment: fixed;
 }
 /* 壁纸遮罩暗度（--wp-mask 由 JS 设置，0~0.8） */
@@ -127,9 +128,10 @@ header.top-center {
 #search-box {
   width: 100%; display: flex; align-items: center;
   padding: 4px 6px 4px 4px; border-radius: 999px; overflow: hidden;
-  /* 固定深色半透明胶囊：无模糊，壁纸清晰透出 */
-  background: rgba(38, 44, 60, .55);
-  backdrop-filter: none; -webkit-backdrop-filter: none;
+  /* 搜索框背景：颜色在这里改（下面的 0 0 0 即黑色），透明度由设置→外观→搜索栏「透明度」写入 --search-alpha。
+     毛玻璃取 --search-bd、字体大小取 --search-fs，同样来自设置面板。 */
+  background: rgb(0, 0, 0, var(--search-alpha, .55));
+  backdrop-filter: var(--search-bd, none); -webkit-backdrop-filter: var(--search-bd, none);
   border-color: rgba(255, 255, 255, .07);
   box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
 }
@@ -163,9 +165,10 @@ header.top-center {
 }
 #engine-icon:hover { background: rgba(255, 255, 255, .12); filter: none; }
 #engine-icon img { width: 22px; height: 22px; object-fit: contain; border-radius: 4px; pointer-events: none; }
+/*搜索框字体*/
 #search-input {
   flex: 1; border: none; outline: none; background: transparent;
-  padding: 10px 12px; font-size: 14px; color: #e8eaf0;
+  padding: 10px 12px; font-size: var(--search-fs, 16px); color: #ffffffff;
 }
 /* 隐藏浏览器/扩展注入的输入框清除按钮（×） */
 #search-input::-webkit-search-cancel-button,
@@ -562,6 +565,12 @@ input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
 .inline-label { font-size: 13px; color: #555; flex: none; } /* 弹窗固定白底，label 写死深色避免深色模式下变浅不可读 */
 .inline-row .hexa-field { width: 200px; flex: none; }
 .setting-row .hexa-field { width: 150px; flex: none; }
+/* 搜索框样式行：透明度、毛玻璃、字体三控件同排紧凑对齐 */
+#s-searchstylerow { justify-content: flex-start; gap: 8px; }
+#s-searchstylerow .row-unit { font-size: 11px; }
+#s-searchstylerow input[type="range"] { flex: 1; min-width: 46px; }
+/* 搜索框字体大小：紧凑数字框（保留上下箭头） */
+#s-searchfont { flex: none; width: 62px; text-align: center; }
 .setting-hint { font-size: 12px; color: var(--text-sub); margin-top: 6px; line-height: 1.6; }
 /* 文件管理网格（设置→文件） */
 .files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin-top: 12px; }

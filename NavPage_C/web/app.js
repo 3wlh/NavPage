@@ -16,6 +16,12 @@ const $$ = s => [...document.querySelectorAll(s)];
 // 壁纸缺省兜底渐变（仅用于未配置壁纸时的显示，不再作为预设供选择）
 const FALLBACK_WP = 'linear-gradient(135deg,#667eea,#764ba2)';
 
+// 默认壁纸按主干 default-bg 匹配（不限后缀）：/assets/default-bg 与 /assets/default-bg.webp 视为同一张
+function wpKey(u) {
+  const base = (u || '').split('/').pop();
+  return base.replace(/\.[^.]+$/, '') === 'default-bg' ? '/assets/default-bg' : u;
+}
+
 // 解析线性渐变的起止色与角度；非双色线性渐变返回 null（自定义渐变选择器回显用）
 function parseGrad(v) {
   const s = String(v || '');
@@ -170,6 +176,13 @@ function applyAppearance() {
   // 内容区域布局：最大宽度 / 左右边距 / 上下边距 / 自定义页脚
   const rs = document.documentElement.style;
   rs.setProperty('--card-bd', (+s.card_blur || 0) > 0 ? `blur(${Math.min(40, Math.max(0, +s.card_blur))}px)` : 'none');
+  // 搜索框样式：颜色固定在 style.css 的 #search-box，这里只写透明度；毛玻璃与字号同样由变量下发
+  const sop = Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity));
+  rs.setProperty('--search-alpha', (sop / 100).toFixed(3));
+  const sblur = Math.min(40, Math.max(0, +s.search_blur || 0));
+  rs.setProperty('--search-bd', sblur ? `blur(${sblur}px)` : 'none');
+  const sfont = Math.min(24, Math.max(10, +s.search_font || 16));
+  rs.setProperty('--search-fs', sfont + 'px');
   // 最大宽度支持 px 与 %：% 相对于视口宽度，px 为固定像素
   const maxUnit = s.content_max_unit === '%' ? '%' : 'px';
   const maxW = +s.content_max_width || (maxUnit === '%' ? 100 : 1200);
@@ -1168,7 +1181,7 @@ function renderAppearanceTab() {
   const cg = parseGrad(isGrad ? wp.value : s.wallpaper_grad) || { c1: '#667eea', c2: '#764ba2', deg: 135 };
   const gradValue = `linear-gradient(${cg.deg}deg, ${cg.c1}, ${cg.c2})`;
   const dis = isGrad ? '' : ' disabled';
-  const wpList = wpAssets.length ? wpAssets : ['/assets/default-bg.png'];
+  const wpList = wpAssets.length ? wpAssets : ['/assets/default-bg'];
   const isPct = s.content_max_unit === '%';
   // 左右边距为独立设置（与最大宽度解耦）：固定 0–200px，便于细调
   const padv = Math.min(200, Math.max(0, s.content_pad_x == null ? 20 : +s.content_pad_x));
@@ -1191,6 +1204,15 @@ function renderAppearanceTab() {
     <div class="set-card"><h3>搜索栏组件</h3>
       <div class="setting-row"><label>显示</label>
         <label class="switch"><input type="checkbox" id="s-showsearch" ${s.show_search !== false ? 'checked' : ''}><i></i></label></div>
+      <div id="s-searchopts" ${s.show_search === false ? 'hidden' : ''}>
+        <div class="setting-row" id="s-searchstylerow">
+          <label>样式</label>
+          <input type="range" id="s-searchopacity" min="0" max="100" step="5" value="${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}" title="背景透明度">
+          <span class="row-unit" id="s-searchopacity-v">${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}%</span>
+          <input type="range" id="s-searchblur" min="0" max="40" step="1" value="${+s.search_blur || 0}" title="毛玻璃模糊">
+          <span class="row-unit" id="s-searchblur-v">${+s.search_blur || 0}px</span>
+          <input type="number" id="s-searchfont" min="10" max="24" step="1" value="${+s.search_font || 16}" title="字体大小(px)"></div>
+      </div>
     </div>
     <div class="set-card"><h3>卡片</h3>
       <div class="setting-row"><label>图标风格</label>
@@ -1238,7 +1260,7 @@ function renderAppearanceTab() {
       </div>
       <div class="setting-row"><label>预设</label>
         <div class="wp-mini">
-          ${wpList.map(u => `<div class="wp-dot ${wp.type === 'image' && wp.value === u ? 'active' : ''}" data-wp="${esc(u)}" title="${esc(u.split('/').pop())}" style="background:url('${esc(u)}') center/cover"></div>`).join('')}
+          ${wpList.map(u => `<div class="wp-dot ${wp.type === 'image' && wpKey(wp.value) === wpKey(u) ? 'active' : ''}" data-wp="${esc(u)}" title="${esc(u.split('/').pop())}" style="background:url('${esc(u)}') center/cover"></div>`).join('')}
           <div class="wp-dot ${isGrad ? 'active' : ''}" data-wp="grad" title="自定义渐变" style="background:${gradValue}"></div>
         </div></div>
       <div class="setting-row"><label>自定义渐变</label>
@@ -1307,6 +1329,25 @@ function bindSettingColorField(fieldId, initial, onChange) {
   });
   $('#s-showsearch').addEventListener('change', e => {
     cfg.settings.show_search = e.target.checked;
+    // 搜索框样式设置仅在显示搜索栏时出现
+    $('#s-searchopts').hidden = !e.target.checked;
+    applyAppearance(); debounceSave();
+  });
+  $('#s-searchopacity').addEventListener('input', e => {
+    cfg.settings.search_opacity = +e.target.value;
+    $('#s-searchopacity-v').textContent = e.target.value + '%';
+    applyAppearance(); debounceSave();
+  });
+  $('#s-searchblur').addEventListener('input', e => {
+    cfg.settings.search_blur = +e.target.value;
+    $('#s-searchblur-v').textContent = e.target.value + 'px';
+    applyAppearance(); debounceSave();
+  });
+  $('#s-searchfont').addEventListener('change', e => {
+    // 数字框：越界或空值回落到默认 16
+    const v = Math.min(24, Math.max(10, parseInt(e.target.value, 10) || 16));
+    e.target.value = v;
+    cfg.settings.search_font = v;
     applyAppearance(); debounceSave();
   });
   $('#s-hidedesc').addEventListener('change', e => {
@@ -1685,9 +1726,9 @@ async function tryLogin() {
 async function loadWpAssets() {
   try {
     const d = await api('GET', '/api/wallpapers');
-    return Array.isArray(d.items) && d.items.length ? d.items : ['/assets/default-bg.png'];
+    return Array.isArray(d.items) && d.items.length ? d.items : ['/assets/default-bg'];
   } catch {
-    return ['/assets/default-bg.png'];
+    return ['/assets/default-bg'];
   }
 }
 

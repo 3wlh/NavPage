@@ -20,8 +20,10 @@ endif
 # Linux本机编译时取本机架构，避免产物名带空后缀
 ARCH ?= $(shell $(CC) -dumpmachine | cut -d- -f1)
 
-# 编译与链接选项 
-CFLAGS := -Os -Wall -Wextra
+# 编译与链接选项；NP_BUILD_STAMP 可传入随机值，避免编译器按命令行缓存复用旧产物
+# 例如：make amd64 NP_STAMP=12345（Windows SDK 的 gcc 带缓存，不换命令行可能拿到旧二进制）
+NP_STAMP ?= 0
+CFLAGS := -Os -Wall -Wextra -DNP_BUILD_STAMP=$(NP_STAMP)
 # 静态链接
 ifneq ($(TRIPLE),)
 	LDFLAGS += -target $(TRIPLE)
@@ -41,7 +43,6 @@ HEADERS := $(wildcard $(SRC_DIR)/*.h) # 头文件改动也要触发重编译
 EXECUTABLE := $(BUILD_DIR)/$(TARGET) # 输出执行文件
 
 ASSETS := embedgen/assets.c embedgen/assets.S
-HAVE_ASSETS := $(words $(wildcard embedgen/assets.c embedgen/assets.S))
 
 
 ifeq ($(OS),Windows_NT)
@@ -65,12 +66,10 @@ linux:
 $(EMBEDGEN): tools/embedgen.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -o $@ $<
 
-# 编译资源
-ifeq ($(shell [ "$(HAVE_ASSETS)" -lt 2 ] && echo 1),1)
-# 资源缺失 → 需要 embedgen 来生成
-$(ASSETS): | $(EMBEDGEN)
+# 编译资源：web 下任意文件变动都会重新生成，避免嵌入的前端与源码不一致（长度对不上会导致 JS 被截断）
+WEB_FILES := $(wildcard web/*.html web/*.js web/*.css) $(wildcard web/assets/*) $(wildcard web/vendor/*)
+$(ASSETS): $(WEB_FILES) | $(EMBEDGEN)
 	./$(EMBEDGEN) web embedgen/assets
-endif
 
 # 编译源码
 $(EXECUTABLE):$(SOURCES) $(HEADERS) | $(ASSETS) $(BUILD_DIR) 

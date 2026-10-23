@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>导航页</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text x=%2250%22 y=%22.88em%22 text-anchor=%22middle%22 font-size=%22100%22>🌐</text></svg>">
-<link rel="stylesheet" href="style.css?v=112">
+<link rel="stylesheet" href="style.css?v=122">
 </head>
 <body>
 <div id="bg"></div>
@@ -101,8 +101,10 @@ try {
   if (a && a.wallpaper) {
     const bg = document.getElementById('bg'), wp = a.wallpaper;
     if (wp.type === 'image' && wp.value) {
+      // 默认壁纸统一走无后缀路径（服务端按主干 default-bg 匹配实际文件，png/jpg/webp 均可）
+      if (/^\/assets\/default-bg(\.[^./]+)?$/.test(wp.value)) wp.value = '/assets/default-bg';
       // 壁纸就是默认图时 CSS 兜底已生效，跳过 JS 设置避免无谓重绘
-      if (wp.value !== '/assets/default-bg.png') {
+      if (wp.value !== '/assets/default-bg') {
         // 图片就绪后再切换背景，避免协商/下载期间露出深色底闪烁
         const apply = () => {
           bg.style.background = `url("${wp.value}") center/cover no-repeat fixed`;
@@ -127,6 +129,6 @@ try {
 </script>
 <!-- SortableJS 拖拽排序库（本地内嵌，离线可用） -->
 <script src="vendor/sortable.min.js"></script>
-<script src="app.js?v=123"></script>
+<script src="app.js?v=132"></script>
 </body>
 </html>
