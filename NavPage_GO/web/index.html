@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>导航页</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text x=%2250%22 y=%22.88em%22 text-anchor=%22middle%22 font-size=%22100%22>🌐</text></svg>">
+<link rel="stylesheet" href="style.css?v=112">
+</head>
+<body>
+<div id="bg"></div>
+
+<!-- 登录视图 -->
+<div id="login-view" class="view hidden">
+  <div class="login-card glass">
+    <h1 id="login-title">导航页</h1>
+    <p class="login-sub">请登录后使用</p>
+    <form id="login-form">
+      <input type="text" id="login-user" placeholder="用户名" autocomplete="username" required>
+      <input type="password" id="login-pass" placeholder="密码" autocomplete="current-password" required>
+      <button type="submit" id="login-btn" class="btn accent">登 录</button>
+      <p id="login-err" class="err hidden"></p>
+    </form>
+  </div>
+</div>
+
+<!-- 主视图 -->
+<div id="main-view" class="view hidden">
+  <header class="top-center container">
+    <div id="logo-box"></div>
+    <div class="v-sep"></div>
+    <div id="clock-box">
+      <div id="clock-time">--:--</div>
+      <div id="clock-date"></div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="search-row">
+      <div class="search-wrap">
+        <div id="search-box" class="glass">
+          <button id="engine-icon" title="切换搜索引擎"><img id="engine-img" alt="引擎"></button>
+          <input type="text" id="search-input" placeholder="请输入搜索内容..." autocomplete="off">
+          <button id="search-clear" title="清空" hidden><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <button id="search-btn" title="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.2-4.2"/></svg></button>
+        </div>
+        <div id="engine-pop" class="hidden">
+          <div id="engine-list"></div>
+          <label class="np-check"><input type="checkbox" id="search-newwin"> 新窗口打开</label>
+        </div>
+      </div>
+    </div>
+    <section id="groups-wrap"></section>
+    <section id="bookmarks-wrap"></section>
+    <footer id="foot">Powered by Navigation-Page</footer>
+  </main>
+</div>
+
+<!-- 右下角悬浮按钮 -->
+<div id="fab-stack">
+  <button id="net-toggle" class="fab-btn" title="切换内外网">🌐</button>
+  <button id="login-link" class="fab-btn hidden" title="登录">🔑</button>
+  <button id="settings-btn" class="fab-btn" title="设置">⚙</button>
+</div>
+
+<!-- 设置抽屉 -->
+<div id="drawer-mask" class="hidden"></div>
+<aside id="drawer" class="hidden">
+  <div class="drawer-head">
+    <h2>设置</h2>
+    <button id="drawer-close" class="icon-btn">✕</button>
+  </div>
+  <nav class="drawer-tabs">
+    <button class="tab-btn active" data-tab="appearance">外观</button>
+    <button class="tab-btn" data-tab="groups">分组</button>
+    <button class="tab-btn" data-tab="bookmarks">书签</button>
+    <button class="tab-btn" data-tab="engines">搜索</button>
+    <button class="tab-btn" data-tab="files">文件</button>
+    <button class="tab-btn" data-tab="account">账号</button>
+  </nav>
+  <div class="drawer-body">
+    <div id="tab-appearance" class="tab-panel"></div>
+    <div id="tab-groups" class="tab-panel hidden"></div>
+    <div id="tab-bookmarks" class="tab-panel hidden"></div>
+    <div id="tab-engines" class="tab-panel hidden"></div>
+    <div id="tab-files" class="tab-panel hidden"></div>
+    <div id="tab-account" class="tab-panel hidden"></div>
+  </div>
+</aside>
+
+<!-- 通用弹窗 -->
+<div id="modal-mask" class="hidden"><div id="modal" class="glass"></div></div>
+
+<div id="toast"></div>
+<input type="file" id="file-input" hidden>
+
+<script>
+/* 刷新防闪：先用 localStorage 缓存的外观立即渲染背景与主题色，不等网络请求 */
+try {
+  const a = JSON.parse(localStorage.getItem('np_appearance') || 'null');
+  if (a && a.wallpaper) {
+    const bg = document.getElementById('bg'), wp = a.wallpaper;
+    if (wp.type === 'image' && wp.value) {
+      // 壁纸就是默认图时 CSS 兜底已生效，跳过 JS 设置避免无谓重绘
+      if (wp.value !== '/assets/default-bg.png') {
+        // 图片就绪后再切换背景，避免协商/下载期间露出深色底闪烁
+        const apply = () => {
+          bg.style.background = `url("${wp.value}") center/cover no-repeat fixed`;
+          if (a.wallpaper_blur > 0) { bg.style.filter = `blur(${a.wallpaper_blur}px)`; bg.style.transform = 'scale(1.08)'; }
+        };
+        const img = new Image();
+        img.onload = apply; img.onerror = apply;
+        img.src = wp.value;
+      }
+      if (a.wallpaper_mask > 0) document.documentElement.style.setProperty('--wp-mask', a.wallpaper_mask / 100);
+    } else if (wp.value) {
+      bg.style.background = wp.value;
+    }
+    if (a.accent) document.documentElement.style.setProperty('--accent', a.accent);
+  }
+  /* 时钟预渲染：不等 app.js 下载，HTML 解析完立即显示 */
+  const n = new Date(), p = x => String(x).padStart(2, '0');
+  const ct = document.getElementById('clock-time'), cd = document.getElementById('clock-date');
+  if (ct) ct.textContent = `${p(n.getHours())}:${p(n.getMinutes())}${a && a.clock_seconds ? ':' + p(n.getSeconds()) : ''}`;
+  if (cd) cd.textContent = `${n.getMonth() + 1}月${n.getDate()}日 星期${'日一二三四五六'[n.getDay()]}`;
+} catch (e) {}
+</script>
+<!-- SortableJS 拖拽排序库（本地内嵌，离线可用） -->
+<script src="vendor/sortable.min.js"></script>
+<script src="app.js?v=123"></script>
+</body>
+</html>

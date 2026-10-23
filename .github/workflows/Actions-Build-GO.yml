@@ -1,0 +1,116 @@
+name: Actions Build GO 
+
+on:
+  workflow_dispatch:
+    inputs:
+      upx:
+        description: 是否upx压缩
+        default: true
+        type: boolean
+        
+      cnb:
+        description: 是否上传到(CNB)仓库
+        default: true
+        type: boolean
+        
+                 
+env:
+  Name: NavPage
+  Build_PATH: "${{ github.workspace }}/Build"
+  
+jobs:
+  build:
+    name: build NavPage_GO
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@main
+        with:
+          go-version: "1.25"
+      
+      - name: Install UPX
+        if: (inputs.upx)
+        uses: crazy-max/ghaction-upx@v4
+        with:
+          install-only: true
+      
+      - name: Configure environment variables
+        run: |
+          test -d "${{ env.Build_PATH }}" || mkdir -p "${{ env.Build_PATH }}"
+          echo "✅ UPX版本：$(upx --version)"
+          
+      - name: Build Source
+        id: build_source
+        working-directory: ${{ github.workspace }}/NavPage_GO
+        env: 
+          Name: ${{ env.Name }}
+        run: |
+          echo "Time=$(date "+%Y.%m.%d_%H%M%S")" >> $GITHUB_ENV
+          mkdir -pm 775 ${{ env.Build_PATH }}
+          echo "✅ 编译软件目录：$(pwd)"
+          export CGO_ENABLED=0
+          echo "✅ 下载依赖：NavPage_GO"
+          go mod tidy && go mod download
+          for os in linux; do
+            for arch in amd64 arm64; do
+              echo "📦 编译 $Name-$os-$arch"
+              export GOOS=$os && export GOARCH=$arch && go build -ldflags "-s -w" -o ${{ env.Build_PATH }}/$Name-$os-$arch        
+              done
+          done               
+          # 设置输出变量
+          if [ -d "${{ env.Build_PATH }}" ] && [ "$(ls -A ${{ env.Build_PATH }})" ]; then
+            if [ "${{ inputs.upx }}" = "true" ]; then
+              upx -9 ${{ env.Build_PATH }}/*
+            fi
+            echo "✅ 编译成功"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ 编译失败"
+          fi
+      
+      - name: Delete GitHub Release
+        if: (steps.build_source.outputs.status == 'success')
+        uses: dev-drprasad/delete-tag-and-release@v1.1
+        with:
+          tag_name: GitHub-Actions_${{ env.Name }}
+          delete_release: true
+          repo: 3wlh/Build-Source
+          github_token: ${{ secrets.TOKEN_GITHUB }}
+          
+      - name: Delete CNB Release
+        if: (inputs.cnb == true && steps.build_source.outputs.status == 'success')
+        uses: 3wlh/actions/CNB/delete-releases@main
+        with:
+          repository: 3wlh/Build-File
+          tag_name: GitHub-Actions_${{ env.Name }}
+          token: ${{ secrets.TOKEN_CNB }}
+        continue-on-error: true
+
+      - name: Upload to Release
+        if: (steps.build_source.outputs.status == 'success')
+        uses: softprops/action-gh-release@master
+        with:
+          token: ${{ secrets.TOKEN_GITHUB }}
+          repository: 3wlh/Build-Source
+          tag_name: GitHub-Actions_${{ env.Name }}
+          name: GO：${{ env.Name }}
+          body: |
+            ## 编译信息
+            - 编译时间：`${{ env.Time }}`
+          files: ${{ env.Build_PATH }}/*
+          
+      - name: Upload as release assets CNB
+        if: (inputs.cnb == true && steps.build_source.outputs.status == 'success')
+        uses: 3wlh/actions/CNB/upload-releases@main
+        with:
+          repository: 3wlh/Build-File
+          token: ${{ secrets.TOKEN_CNB }}
+          tag_name: GitHub-Actions_${{ env.Name }}
+          name: GO：${{ env.Name }}
+          body: |
+            ## 编译信息
+            - 编译时间：`${{ env.Time }}`
+          files: ${{ env.Build_PATH }}/*

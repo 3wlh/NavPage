@@ -1,0 +1,206 @@
+name: Actions Build OpenWrt
+
+on:
+  workflow_dispatch:
+    inputs:  
+      version:
+        description: 选择 OpenWrt 版本
+        required: false
+        default: "24.10.0"
+        type: choice
+        options:
+          - 23.05.5
+          - 24.10.0
+      
+      upx:
+        description: 是否upx压缩
+        default: true
+        type: boolean
+      
+      cnb:
+        description: 是否上传到(CNB)仓库
+        default: true
+        type: boolean
+        
+      pack:
+        description: 是否打包(TAR.GZ)
+        default: false
+        type: boolean
+      
+env:
+  Name: navpage
+  Build_PATH: ${{ github.workspace }}/Build
+  CACHE_PATH: /tmp/.cache
+  TZ: Asia/Shanghai
+  UPLOAD_BIN_DIR: true
+
+jobs:
+  jod_compile:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64_generic]      
+    steps: 
+      - name: Checkout
+        uses: actions/checkout@main
+        
+      - name: Install Dependencies
+        run: |
+          # DEBIAN_FRONTEND=noninteractive sudo apt-get install -y ccache gettext libncurses5-dev xsltproc
+          #sudo apt-get remove gcc g++
+      
+      - name: Create Directories
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          # ✅初始化设置
+          case "$TARGET_ARCH" in
+            *aarch64*)
+              echo "arch=arm64" >> $GITHUB_ENV
+              ;;
+            *x86_64*)
+              echo "arch=amd64" >> $GITHUB_ENV
+              ;;
+          esac
+          echo "Name=navpage" >> $GITHUB_ENV
+          test -d "${{ env.Build_PATH }}" || mkdir -pm 755 "${{ env.Build_PATH }}"
+          
+      - name: Install and Unzip ToolChain
+        uses: 3wlh/actions/openwrt/toolchain@main
+        id: toolchain
+        with:
+          arch: ${{ matrix.arch }}
+          version: ${{ inputs.version }}
+          path: ${{ env.CACHE_PATH }}
+
+        
+      - name: Build and Source
+        working-directory: ${{ github.workspace }}/NavPage_C
+        id: build
+        run: |
+          # ✅开始编译源码
+          source /etc/profile
+          files=$(find . -type f -name "*.c")
+          Argv="-Os -s"
+          if [ -f "Makefile" ]; then
+            echo "✅检测到 Makefile，使用 make 编译"
+            make
+            # 如果 make 产物需要复制到指定位置（按实际情况调整）
+            if [ -d "Build" ]; then
+              ls "Build"
+              cp -f Build/*_$(gcc -dumpmachine | cut -d- -f1) "${{ env.Build_PATH }}/${{ env.Name }}-${{ env.arch }}"
+            fi
+          elif [ -n "$files" ]; then
+            echo "✅源码文件: ${files}"
+            echo "✅使用 gcc 编译 C 源码"
+            gcc ${files} -o ${{ env.Build_PATH }}/${{ env.Name }}-${{ env.arch }} ${Argv}
+          else
+            files=$(find . -type f -name "*.cpp")
+            echo "✅源码文件: ${files}"
+            echo "✅使用 g++ 编译 C++ 源码"
+            g++ ${files} -o ${{ env.Build_PATH }}/${{ env.Name }}-${{ env.arch }} ${Argv}
+          fi
+          echo "status=success" >> $GITHUB_OUTPUT
+          
+      - name: Upload to bin directory
+        uses: actions/upload-artifact@main
+        if: steps.build.outputs.status == 'success' && ${{env.UPLOAD_BIN_DIR}} == 'true'
+        with:
+          name: ${{ env.Name }}-${{ env.arch }}
+          path: ${{ env.Build_PATH }}/${{ env.Name }}-${{ env.arch }}
+
+  jod_release:
+    name: Upload to Release
+    needs: jod_compile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Initialization Settings
+        run: |
+          # ✅初始化设置
+          sudo timedatectl set-timezone "${TZ}"
+          echo "Time=$(date "+%Y.%m.%d_%H%M%S")" >> $GITHUB_ENV
+          test -d "${{ env.Build_PATH }}" || mkdir -pm 755 "${{ env.Build_PATH }}"
+
+      - name: Download ${{ env.Name }}
+        uses: actions/download-artifact@main
+        with:
+          path: ${{ env.Build_PATH }}
+          merge-multiple: true
+      
+      
+      - name: Install UPX
+        if: inputs.upx
+        uses: crazy-max/ghaction-upx@v4
+        with:
+          install-only: true
+
+      - name: UPX compression process
+        if: inputs.upx
+        working-directory: ${{ env.Build_PATH }}
+        run: |
+          if [ -d "$(pwd)" ] && [ "$(ls -A $(pwd))" ]; then
+            chmod +x *
+            upx -9 *
+          fi
+      
+      - name: Pack into a gz files
+        if: inputs.pack
+        working-directory: ${{ env.Build_PATH }}
+        run: |
+          if [ -d "$(pwd)" ] && [ "$(ls -A $(pwd))" ]; then
+            tar -zcvf $(pwd).tar.gz *
+          if
+      
+      - name: Check file
+        working-directory: ${{ env.Build_PATH }}
+        id: check
+        run: |
+          ls $(pwd)
+          [ "$(ls -A $(pwd))" ] && echo "status=success" >> $GITHUB_OUTPUT
+        
+      - name: Delete GitHub Release
+        if: (steps.check.outputs.status == 'success')
+        uses: dev-drprasad/delete-tag-and-release@v1.1
+        with:
+          tag_name: GitHub-Actions_${{ env.Name }}
+          delete_release: true
+          repo: 3wlh/Build-Source
+          github_token: ${{ secrets.TOKEN_GITHUB }}
+          
+      - name: Delete CNB Release
+        if: (inputs.cnb == true && steps.check.outputs.status == 'success')
+        uses: 3wlh/actions/CNB/delete-releases@main
+        with:
+          repository: 3wlh/Build-File
+          tag_name: GitHub-Actions_${{ env.Name }}
+          token: ${{ secrets.TOKEN_CNB }}
+        continue-on-error: true
+      
+      - name: Upload to Release
+        if: (steps.check.outputs.status == 'success')
+        uses: softprops/action-gh-release@master
+        with:
+          token: ${{ secrets.TOKEN_GITHUB }}
+          repository: 3wlh/Build-Source
+          tag_name: GitHub-Actions_${{ env.Name }}
+          name: OpenWrt：${{ env.Name }}
+          body: |
+            ## 软件信息：
+            - 编译时间：`${{ env.Time }}`
+            - SDK版本: `${{ inputs.version }}`
+          files: ${{ env.Build_PATH }}/*
+          
+      - name: Upload as release assets CNB
+        if: (inputs.cnb == true && steps.check.outputs.status == 'success')
+        uses: 3wlh/actions/CNB/upload-releases@main
+        with:
+          repository: 3wlh/Build-File
+          token: ${{ secrets.TOKEN_CNB }}
+          tag_name: GitHub-Actions_${{ env.Name }}
+          name: OpenWrt：${{ env.Name }}
+          body: |
+            ## 编译信息
+            - 编译时间：`${{ env.Time }}`
+          files: ${{ env.Build_PATH }}/*

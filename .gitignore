@@ -1,0 +1,5 @@
+# Ignore the file
+*.exe
+# Ignore the directory
+**/out/
+**/Build/
