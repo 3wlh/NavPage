@@ -11,7 +11,7 @@ extern const unsigned char np_asset_style_css[];
 extern const unsigned char np_asset_vendor_sortable_min_js[];
 
 const np_asset np_assets[] = {
-    { "/app.js", np_asset_app_js, 86620 },
+    { "/app.js", np_asset_app_js, 87528 },
     { "/assets/default-bg.webp", np_asset_assets_default_bg_webp, 67858 },
     { "/assets/default-bg1.webp", np_asset_assets_default_bg1_webp, 132446 },
     { "/assets/default-bg2.webp", np_asset_assets_default_bg2_webp, 39848 },

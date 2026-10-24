@@ -92,20 +92,30 @@ function autoIcon(url) {
 const snapOf = () => JSON.stringify({ settings: cfg.settings, groups: cfg.groups, bookmark_groups: cfg.bookmark_groups });
 const markSaved = () => { savedSnap = snapOf(); };
 
+let saveDirty = false; // 拖动/输入只标记待保存，不立即发请求，关闭设置面板时统一 flush，避免抖动
 function debounceSave() {
+  saveDirty = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    const snap = snapOf();
-    if (snap === savedSnap) return; // 改回原值/无实际变化，不落盘
-    try {
-      await api('PUT', '/api/config', {
-        settings: cfg.settings,
-        groups: cfg.groups,
-        bookmark_groups: cfg.bookmark_groups,
-      });
-      savedSnap = snap;
-    } catch (e) { toast('保存失败：' + e.message, 'err'); }
-  }, 500);
+}
+
+// 立即落盘待保存改动：关闭/隐藏设置抽屉时调用
+async function flushSave() {
+  clearTimeout(saveTimer);
+  if (!saveDirty) return;
+  saveDirty = false;
+  const snap = snapOf();
+  if (snap === savedSnap) return; // 改回原值/无实际变化，不落盘
+  try {
+    await api('PUT', '/api/config', {
+      settings: cfg.settings,
+      groups: cfg.groups,
+      bookmark_groups: cfg.bookmark_groups,
+    });
+    savedSnap = snap;
+  } catch (e) {
+    saveDirty = true; // 保存失败仍需下次重试
+    toast('保存失败：' + e.message, 'err');
+  }
 }
 
 /* ============ 上传 ============ */
@@ -179,7 +189,7 @@ function applyAppearance() {
   // 搜索框样式：颜色固定在 style.css 的 #search-box，这里只写透明度；毛玻璃与字号同样由变量下发
   const sop = Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity));
   rs.setProperty('--search-alpha', (sop / 100).toFixed(3));
-  const sblur = Math.min(40, Math.max(0, +s.search_blur || 0));
+  const sblur = Math.min(25, Math.max(0, +s.search_blur || 0));
   rs.setProperty('--search-bd', sblur ? `blur(${sblur}px)` : 'none');
   const sfont = Math.min(24, Math.max(10, +s.search_font || 16));
   rs.setProperty('--search-fs', sfont + 'px');
@@ -1064,6 +1074,7 @@ function openDrawer() {
 function closeDrawer() {
   $('#drawer').classList.add('hidden');
   $('#drawer-mask').classList.add('hidden');
+  flushSave(); // 关闭/隐藏设置面板时统一落盘，避免拖动过程频繁请求造成的抖动
 }
 
 function renderTab() {
@@ -1209,8 +1220,8 @@ function renderAppearanceTab() {
           <label>样式</label>
           <input type="range" id="s-searchopacity" min="0" max="100" step="5" value="${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}" title="背景透明度">
           <span class="row-unit" id="s-searchopacity-v">${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}%</span>
-          <input type="range" id="s-searchblur" min="0" max="40" step="1" value="${+s.search_blur || 0}" title="毛玻璃模糊">
-          <span class="row-unit" id="s-searchblur-v">${+s.search_blur || 0}px</span>
+          <input type="range" id="s-searchblur" min="0" max="25" step="1" value="${Math.min(25, Math.max(0, +s.search_blur || 0))}" title="毛玻璃模糊">
+          <span class="row-unit" id="s-searchblur-v">${Math.min(25, Math.max(0, +s.search_blur || 0))}px</span>
           <input type="number" id="s-searchfont" min="10" max="24" step="1" value="${+s.search_font || 16}" title="字体大小(px)"></div>
       </div>
     </div>
@@ -1844,4 +1855,17 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', () => { closeContextMenu(); closeHexaPicker(); closeDescTip(); }, true);
   window.addEventListener('resize', () => { closeContextMenu(); closeHexaPicker(); closeDescTip(); });
   window.addEventListener('blur', closeContextMenu);
+
+  // 兜底：有改动未落盘时，页面刷新/关闭标签页也尽量保存（keepalive 保证页面卸载后请求仍会发出）
+  window.addEventListener('beforeunload', () => {
+    if (!saveDirty) return;
+    const body = snapOf();
+    if (body === savedSnap) return;
+    fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    });
+  });
 });
