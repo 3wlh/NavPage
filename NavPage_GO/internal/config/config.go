@@ -358,7 +358,7 @@ func defaultConfig() Config {
 				ID: 3, Name: "Git仓库",
 				Items: []Item{
 					{ID: 1, Name: "GitHub", URL: "https://github.com", Desc: "全球最大代码托管"},
-					{ID: 2, Name: "CND", URL: "https://www.cnd.com", Desc: "内容分发网络"},
+					{ID: 2, Name: "CND", URL: "https://cnb.cool", Desc: "内容分发网络"},
 					{ID: 3, Name: "Gitee", URL: "https://gitee.com", Desc: "代码托管平台"},
 					{ID: 4, Name: "GitLink", URL: "https://www.gitlink.org.cn", Desc: "代码托管平台"},
 				},
@@ -378,7 +378,7 @@ func defaultConfig() Config {
 				ID: 1, Name: "仓库",
 				Links: []Link{
 					{ID: 1, Name: "GitHub", URL: "https://github.com"},
-					{ID: 2, Name: "CND", URL: "https://www.cnd.com"},
+					{ID: 2, Name: "CND", URL: "https://cnb.cool"},
 					{ID: 3, Name: "Gitee", URL: "https://gitee.com"},
 					{ID: 4, Name: "GitLink", URL: "https://www.gitlink.org.cn"},
 				},

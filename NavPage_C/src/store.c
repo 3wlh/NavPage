@@ -298,7 +298,7 @@ static jval *default_config(void) {
     jval *g1 = mkgroup(3, "Git仓库");
     jval *gi1 = jobj_get(g1, "items");
     jarr_push(gi1, mkitem(1, "GitHub", "https://github.com", "全球最大代码托管"));
-    jarr_push(gi1, mkitem(2, "CND", "https://www.cnd.com", "内容分发网络"));
+    jarr_push(gi1, mkitem(2, "CND", "https://cnb.cool", "内容分发网络"));
     jarr_push(gi1, mkitem(3, "Gitee", "https://gitee.com", "代码托管平台"));
     jarr_push(gi1, mkitem(4, "GitLink", "https://www.gitlink.org.cn", "代码托管平台"));
     jval *g2 = mkgroup(2, "视频网站");
@@ -315,7 +315,7 @@ static jval *default_config(void) {
     jval *b1 = mkbookmark(1, "仓库");
     jval *bl1 = jobj_get(b1, "links");
     jarr_push(bl1, mklink(1, "GitHub", "https://github.com"));
-    jarr_push(bl1, mklink(2, "CND", "https://www.cnd.com"));
+    jarr_push(bl1, mklink(2, "CND", "https://cnb.cool"));
     jarr_push(bl1, mklink(3, "Gitee", "https://gitee.com"));
     jarr_push(bl1, mklink(4, "GitLink", "https://www.gitlink.org.cn"));
     jval *b2 = mkbookmark(2, "视频网站");

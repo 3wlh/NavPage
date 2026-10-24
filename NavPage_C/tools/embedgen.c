@@ -18,7 +18,6 @@
 typedef struct {
     char web[512];   /* 相对 web/ 的路径，如 assets/default-bg.png */
     char sym[256];   /* C 符号名 */
-    long size;
 } Entry;
 
 static Entry entries[512];
@@ -54,7 +53,6 @@ static void scan(const char *base, const char *rel) {
         } else if (nentries < (int)(sizeof entries / sizeof entries[0])) {
             snprintf(entries[nentries].web, sizeof entries[0].web, "%s", sub + 1);
             to_sym(entries[nentries].web, entries[nentries].sym, sizeof entries[0].sym);
-            entries[nentries].size = st.st_size;
             nentries++;
         }
     }
@@ -87,9 +85,11 @@ int main(int argc, char **argv) {
     if (!s) { perror(spath); return 1; }
     fprintf(s, "/* 由 embedgen 自动生成，勿手改 */\n");
     fprintf(s, ".section .rodata\n");
+    /* 每个文件后跟 _end 标签：尺寸由链接器按指针差求值，
+     * 避免 assets.c 硬编码尺寸与实际嵌入字节数脱节（尺寸偏大时会越界读到下一个资源） */
     for (int i = 0; i < nentries; i++)
-        fprintf(s, ".global np_asset_%s\nnp_asset_%s:\n.incbin \"%s/%s\"\n",
-                entries[i].sym, entries[i].sym, webdir, entries[i].web);
+        fprintf(s, ".global np_asset_%s\n.global np_asset_%s_end\nnp_asset_%s:\n.incbin \"%s/%s\"\nnp_asset_%s_end:\n",
+                entries[i].sym, entries[i].sym, entries[i].sym, webdir, entries[i].web, entries[i].sym);
     /* 仅 ELF 目标（Linux）需要可执行栈标记；Windows/COFF 汇编器不认识该指令 */
     fprintf(s, "#ifdef __ELF__\n.section .note.GNU-stack,\"\",@progbits\n#endif\n");
     fclose(s);
@@ -98,11 +98,14 @@ int main(int argc, char **argv) {
     if (!c) { perror(cpath); return 1; }
     fprintf(c, "/* 由 embedgen 自动生成，勿手改 */\n");
     fprintf(c, "#include \"assets.h\"\n");
-    for (int i = 0; i < nentries; i++)
+    for (int i = 0; i < nentries; i++) {
         fprintf(c, "extern const unsigned char np_asset_%s[];\n", entries[i].sym);
+        fprintf(c, "extern const unsigned char np_asset_%s_end[];\n", entries[i].sym);
+    }
     fprintf(c, "\nconst np_asset np_assets[] = {\n");
     for (int i = 0; i < nentries; i++)
-        fprintf(c, "    { \"/%s\", np_asset_%s, %ld },\n", entries[i].web, entries[i].sym, entries[i].size);
+        fprintf(c, "    { \"/%s\", np_asset_%s, np_asset_%s_end },\n",
+                entries[i].web, entries[i].sym, entries[i].sym);
     fprintf(c, "};\nconst int np_asset_count = %d;\n", nentries);
     fclose(c);
 

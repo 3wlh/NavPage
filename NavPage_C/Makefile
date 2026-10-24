@@ -20,8 +20,10 @@ endif
 # Linux本机编译时取本机架构，避免产物名带空后缀
 ARCH ?= $(shell $(CC) -dumpmachine | cut -d- -f1)
 
-# 编译与链接选项
-CFLAGS := -Os -Wall -Wextra 
+# 编译与链接选项；NP_BUILD_STAMP 每次构建传不同值，用于对抗 Windows SDK gcc/lld 按命令行缓存复用旧产物
+# 本机编译务必加：make amd64 NP_STAMP=<随机数>（命令行不变时链接器可能直接复用旧二进制，导致新代码不生效）
+NP_STAMP ?= 0
+CFLAGS := -Os -Wall -Wextra -DNP_BUILD_STAMP=$(NP_STAMP)
 # 静态链接
 ifneq ($(TRIPLE),)
 	LDFLAGS += -target $(TRIPLE)

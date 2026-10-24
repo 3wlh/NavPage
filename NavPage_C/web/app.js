@@ -1218,10 +1218,9 @@ function renderAppearanceTab() {
       <div id="s-searchopts" ${s.show_search === false ? 'hidden' : ''}>
         <div class="setting-row" id="s-searchstylerow">
           <label>样式</label>
-          <input type="range" id="s-searchopacity" min="0" max="100" step="5" value="${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}" title="背景透明度">
-          <span class="row-unit" id="s-searchopacity-v">${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}%</span>
           <input type="range" id="s-searchblur" min="0" max="25" step="1" value="${Math.min(25, Math.max(0, +s.search_blur || 0))}" title="毛玻璃模糊">
           <span class="row-unit" id="s-searchblur-v">${Math.min(25, Math.max(0, +s.search_blur || 0))}px</span>
+          <input type="number" id="s-searchopacity" min="0" max="100" step="5" value="${Math.min(100, Math.max(0, s.search_opacity == null ? 55 : +s.search_opacity))}" title="背景透明度(%)">
           <input type="number" id="s-searchfont" min="10" max="24" step="1" value="${+s.search_font || 16}" title="字体大小(px)"></div>
       </div>
     </div>
@@ -1344,14 +1343,18 @@ function bindSettingColorField(fieldId, initial, onChange) {
     $('#s-searchopts').hidden = !e.target.checked;
     applyAppearance(); debounceSave();
   });
-  $('#s-searchopacity').addEventListener('input', e => {
-    cfg.settings.search_opacity = +e.target.value;
-    $('#s-searchopacity-v').textContent = e.target.value + '%';
-    applyAppearance(); debounceSave();
-  });
   $('#s-searchblur').addEventListener('input', e => {
     cfg.settings.search_blur = +e.target.value;
     $('#s-searchblur-v').textContent = e.target.value + 'px';
+    applyAppearance(); debounceSave();
+  });
+  // 透明度数字框：步进 5，越界或空值回落默认 55
+  $('#s-searchopacity').addEventListener('change', e => {
+    let v = parseInt(e.target.value, 10);
+    if (isNaN(v)) v = 55;
+    v = Math.min(100, Math.max(0, v));
+    e.target.value = v;
+    cfg.settings.search_opacity = v;
     applyAppearance(); debounceSave();
   });
   $('#s-searchfont').addEventListener('change', e => {

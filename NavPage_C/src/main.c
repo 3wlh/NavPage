@@ -243,7 +243,7 @@ static void serve_embedded(np_sock fd, http_req *r, const char *path) {
             const char *cache = np_has_prefix(lookup, "/assets/")
                 ? "public, max-age=31536000, immutable" : "no-cache";
             http_send(fd, 200, "OK", NULL, mime_of(lookup), cache,
-                      np_assets[i].data, (size_t)np_assets[i].size, r->keep_alive);
+                      np_assets[i].data, (size_t)(np_assets[i].data_end - np_assets[i].data), r->keep_alive);
             return;
         }
     }

@@ -570,7 +570,7 @@ input[type="range"]:disabled { opacity: .45; cursor: not-allowed; }
 #s-searchstylerow .row-unit { font-size: 11px; }
 #s-searchstylerow input[type="range"] { flex: 1; min-width: 46px; }
 /* 搜索框字体大小：紧凑数字框（保留上下箭头） */
-#s-searchfont { flex: none; width: 62px; text-align: center; }
+#s-searchfont, #s-searchopacity { flex: none; width: 62px; text-align: center; }
 .setting-hint { font-size: 12px; color: var(--text-sub); margin-top: 6px; line-height: 1.6; }
 /* 文件管理网格（设置→文件） */
 .files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; margin-top: 12px; }
