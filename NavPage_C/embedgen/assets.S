@@ -25,11 +25,6 @@ np_asset_assets_default_bg2_webp_end:
 np_asset_assets_default_bg3_webp:
 .incbin "web/assets/default-bg3.webp"
 np_asset_assets_default_bg3_webp_end:
-.global np_asset_assets_default_bg4_webp
-.global np_asset_assets_default_bg4_webp_end
-np_asset_assets_default_bg4_webp:
-.incbin "web/assets/default-bg4.webp"
-np_asset_assets_default_bg4_webp_end:
 .global np_asset_index_html
 .global np_asset_index_html_end
 np_asset_index_html:

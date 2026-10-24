@@ -10,8 +10,6 @@ extern const unsigned char np_asset_assets_default_bg2_webp[];
 extern const unsigned char np_asset_assets_default_bg2_webp_end[];
 extern const unsigned char np_asset_assets_default_bg3_webp[];
 extern const unsigned char np_asset_assets_default_bg3_webp_end[];
-extern const unsigned char np_asset_assets_default_bg4_webp[];
-extern const unsigned char np_asset_assets_default_bg4_webp_end[];
 extern const unsigned char np_asset_index_html[];
 extern const unsigned char np_asset_index_html_end[];
 extern const unsigned char np_asset_style_css[];
@@ -25,9 +23,8 @@ const np_asset np_assets[] = {
     { "/assets/default-bg1.webp", np_asset_assets_default_bg1_webp, np_asset_assets_default_bg1_webp_end },
     { "/assets/default-bg2.webp", np_asset_assets_default_bg2_webp, np_asset_assets_default_bg2_webp_end },
     { "/assets/default-bg3.webp", np_asset_assets_default_bg3_webp, np_asset_assets_default_bg3_webp_end },
-    { "/assets/default-bg4.webp", np_asset_assets_default_bg4_webp, np_asset_assets_default_bg4_webp_end },
     { "/index.html", np_asset_index_html, np_asset_index_html_end },
     { "/style.css", np_asset_style_css, np_asset_style_css_end },
     { "/vendor/sortable.min.js", np_asset_vendor_sortable_min_js, np_asset_vendor_sortable_min_js_end },
 };
-const int np_asset_count = 9;
+const int np_asset_count = 8;
