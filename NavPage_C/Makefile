@@ -41,6 +41,7 @@ HEADERS := $(wildcard $(SRC_DIR)/*.h) # 头文件改动也要触发重编译
 EXECUTABLE := $(BUILD_DIR)/$(TARGET) # 输出执行文件
 
 ASSETS := embedgen/assets.c embedgen/assets.S
+HAVE_ASSETS := $(words $(wildcard embedgen/assets.c embedgen/assets.S))
 
 
 ifeq ($(OS),Windows_NT)
@@ -58,15 +59,20 @@ amd64: all
 linux: 
 	$(MAKE) all ARCH=amd64 TRIPLE=x86_64-linux-musl
 	$(MAKE) all ARCH=arm64 TRIPLE=aarch64-linux-musl
-			
-
 
 $(EMBEDGEN): tools/embedgen.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -o $@ $<
 
-# 编译资源：web 下任意文件变动都会重新生成，避免嵌入的前端与源码不一致（长度对不上会导致 JS 被截断）
-WEB_FILES := $(wildcard web/*.html web/*.js web/*.css) $(wildcard web/assets/*) $(wildcard web/vendor/*)
-$(ASSETS): $(WEB_FILES) | $(EMBEDGEN)
+# 编译资源：assets.c/assets.S 已存在（已提交进仓库）时直接复用，不编译运行 embedgen，
+# 兼容无静态库/交叉工具链的 CI 与 OpenWrt 环境；缺失时才自动生成。
+# 本地修改 web/ 后执行 make assets 强制刷新嵌入资源。
+ifeq ($(shell [ "$(HAVE_ASSETS)" -lt 2 ] && echo 1),1)
+$(ASSETS): | $(EMBEDGEN)
+	./$(EMBEDGEN) web embedgen/assets
+endif
+
+# 手动强制刷新嵌入资源（本地改 web/ 后执行）
+assets: $(EMBEDGEN)
 	./$(EMBEDGEN) web embedgen/assets
 
 # 编译源码
@@ -80,4 +86,4 @@ $(BUILD_DIR):
 clean:
 	- @$(RM) -r $(BUILD_DIR)/*_$(ARCH)
 	
-.PHONY: all clean linux arm64 amd64
+.PHONY: all clean linux arm64 amd64 assets
