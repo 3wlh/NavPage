@@ -802,13 +802,13 @@ function itemModal(gid, item) {
       </div>
       <a class="link-btn" id="f-bgreset">重置</a>
     </div>
-    <div class="form-row"><label>地址<b class="req">*</b></label>
+    <div class="form-row"><label>地址（支持 location.hostname)<b class="req">*</b></label>
       <div class="icon-preview-row">
         <input type="text" id="f-url" placeholder="http(s)://" value="${esc(it.url)}">
         <button class="btn small" data-fetchicon="f-url">获取图标</button>
       </div>
     </div>
-    <div class="form-row"><label>内网地址（可选，同样支持 location.hostname，内网模式点击卡片打开）</label>
+    <div class="form-row"><label>内网地址（可选，同样支持 location.hostname）</label>
       <div class="icon-preview-row">
         <input type="text" id="f-intranet" placeholder="http(s)://" value="${esc(it.intranet_url || '')}">
         <button class="btn small" data-fetchicon="f-intranet">获取图标</button>
