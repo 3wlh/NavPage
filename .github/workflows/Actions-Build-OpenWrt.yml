@@ -166,7 +166,6 @@ jobs:
         with:
           tag_name: GitHub-Actions_${{ env.Name }}
           delete_release: true
-          repo: 3wlh/Build-Source
           github_token: ${{ secrets.TOKEN_GITHUB }}
           
       - name: Delete CNB Release
@@ -183,7 +182,6 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           token: ${{ secrets.TOKEN_GITHUB }}
-          repository: 3wlh/Build-Source
           tag_name: GitHub-Actions_${{ env.Name }}
           name: OpenWrt：${{ env.Name }}
           body: |
